@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chorus — multi-agent research orchestra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="nav">
+    <span class="brand"><span class="jp">合</span>Chorus</span>
+    <span class="tag">Track 3 · multi-agent research orchestra</span>
+    <div class="key-wrap">
+      <input id="key" type="password" placeholder="Enter your Qwen API key" />
+      <button class="btn ghost" id="saveKey">Save</button>
+      <span class="keystate" id="keyState">no key</span>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <div class="ask">
+      <div class="label">Ask one hard question</div>
+      <div class="ask-row">
+        <input id="question" placeholder="How can we cure blindness?" />
+        <button class="btn" id="go">Convene</button>
+      </div>
+      <div class="examples" id="examples">
+        <span class="chip">How can we cure blindness?</span>
+        <span class="chip">How could a city run entirely on clean energy by 2040?</span>
+        <span class="chip">How do we build an affordable home water purifier?</span>
+      </div>
+    </div>
+
+    <div class="stagebar" id="stagebar" style="display:none">
+      <span class="st" data-st="analyzing">Analyze</span>
+      <span class="st" data-st="researching">Research</span>
+      <span class="st" data-st="coordinating">Coordinate</span>
+      <span class="st" data-st="synthesizing">Synthesize</span>
+      <span class="st" data-st="done">Report</span>
+    </div>
+
+    <div class="hypo" id="hypo"><b>Research hypothesis</b><span id="hypoText"></span></div>
+
+    <div class="agents" id="agents"></div>
+
+    <div class="review" id="review">
+      <h4>Coordinator review</h4>
+      <div id="reviewBody"></div>
+    </div>
+
+    <div class="report" id="report">
+      <div class="report-head">
+        <div class="label">The unified document</div>
+        <button class="btn" id="dl">↓ PDF</button>
+      </div>
+      <div id="reportBody"></div>
+    </div>
+
+    <div class="err" id="err"></div>
+  </div>
+
+  <script src="app.js?v=1"></script>
+</body>
+</html>

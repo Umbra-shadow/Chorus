@@ -1,0 +1,12 @@
+[project]
+name = "chorus"
+version = "0.1.0"
+description = "Chorus — a multi-agent research orchestra (Qwen hackathon, Track 3)"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+
+[tool.pytest.ini_options]
+testpaths = ["engine/tests"]
+pythonpath = ["."]
+addopts = "-q"
+asyncio_mode = "auto"
