@@ -67,13 +67,21 @@ def _max_agents() -> int:
         return 6
 
 
-async def cast_agents(qwen: QwenClient, question: str) -> Cast:
-    """One Qwen call → hypothesis + the domain team to research it."""
+async def cast_agents(qwen: QwenClient, question: str, context: str = "") -> Cast:
+    """One Qwen call → hypothesis + the domain team to research it.
+
+    ``context`` is the Stage-1 conclusion (the Kioku-style first research). When
+    present, the analyzer casts the team informed by what that pass already found,
+    so Stage 2 goes *deeper* rather than repeating Stage 1.
+    """
     cap = _max_agents()
+    user = f"QUESTION:\n{question}"
+    if context.strip():
+        user += f"\n\nFIRST-PASS RESEARCH CONCLUSION (build deeper on this):\n{context.strip()}"
     raw = await qwen.chat_json(
         [
             {"role": "system", "content": _CAST_SYSTEM % {"max": cap}},
-            {"role": "user", "content": f"QUESTION:\n{question}"},
+            {"role": "user", "content": user},
         ],
         temperature=0.4,
         max_tokens=16384,

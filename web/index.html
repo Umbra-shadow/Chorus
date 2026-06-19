@@ -7,11 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <nav class="nav">
-    <span class="brand"><span class="jp">合</span>Chorus</span>
+    <span class="brand">Chorus</span>
     <span class="tag">Track 3 · multi-agent research orchestra</span>
     <div class="key-wrap">
       <input id="key" type="password" placeholder="Enter your Qwen API key" />
@@ -20,48 +21,122 @@
     </div>
   </nav>
 
-  <div class="wrap">
-    <div class="ask">
-      <div class="label">Ask one hard question</div>
-      <div class="ask-row">
-        <input id="question" placeholder="How can we cure blindness?" />
-        <button class="btn" id="go">Convene</button>
+  <div class="split">
+    <!-- LEFT: talk to it -->
+    <div class="col-chat">
+      <div class="chat-header">
+        <div class="label">Talk to it</div>
+        <div class="chat-title">Orchestra chat <span class="status-chip" id="statuschip">idle</span></div>
+        <div class="chat-sub" id="chatsub">ask one big question on the right — then question the orchestra here</div>
       </div>
-      <div class="examples" id="examples">
-        <span class="chip">How can we cure blindness?</span>
-        <span class="chip">How could a city run entirely on clean energy by 2040?</span>
-        <span class="chip">How do we build an affordable home water purifier?</span>
+      <div class="chatlog" id="chatlog">
+        <div class="chat-empty" id="chatEmpty">Convene the orchestra first. Then ask things like <em>"which domain raised the biggest risk?"</em> or <em>"what's the cost estimate?"</em></div>
+      </div>
+      <div class="chat-footer">
+        <div class="frow">
+          <input id="ask" placeholder="Ask anything about the investigation…" disabled />
+          <button class="btn" id="askBtn" disabled>Ask</button>
+        </div>
       </div>
     </div>
 
-    <div class="stagebar" id="stagebar" style="display:none">
-      <span class="st" data-st="analyzing">Analyze</span>
-      <span class="st" data-st="researching">Research</span>
-      <span class="st" data-st="coordinating">Coordinate</span>
-      <span class="st" data-st="synthesizing">Synthesize</span>
-      <span class="st" data-st="done">Report</span>
-    </div>
-
-    <div class="hypo" id="hypo"><b>Research hypothesis</b><span id="hypoText"></span></div>
-
-    <div class="agents" id="agents"></div>
-
-    <div class="review" id="review">
-      <h4>Coordinator review</h4>
-      <div id="reviewBody"></div>
-    </div>
-
-    <div class="report" id="report">
-      <div class="report-head">
-        <div class="label">The unified document</div>
-        <button class="btn" id="dl">↓ PDF</button>
+    <!-- RIGHT: the research -->
+    <div class="col-research">
+      <div class="ask">
+        <div class="label">Ask one hard question</div>
+        <div class="ask-row">
+          <input id="question" placeholder="How can we cure blindness?" />
+          <button class="btn" id="go">Convene</button>
+        </div>
+        <div class="ask-opts">
+          <label class="opt">questions
+            <input type="number" id="numq" value="10" min="2" max="50" title="Stage 1 sub-questions to research and watch answered" />
+          </label>
+          <label class="opt">budget
+            <input type="number" id="budget" value="100" min="2" max="10000" title="Max total questions for the whole run (Stage 1 + agents). Scale to 1000s." />
+          </label>
+          <span class="opt-hint">10 is a good demo; raise the budget for a deeper run.</span>
+        </div>
+        <div class="examples" id="examples">
+          <span class="chip">How can we cure blindness?</span>
+          <span class="chip">How could a city run entirely on clean energy by 2040?</span>
+          <span class="chip">How do we build an affordable home water purifier?</span>
+        </div>
       </div>
-      <div id="reportBody"></div>
-    </div>
 
-    <div class="err" id="err"></div>
+      <div class="mem-panel" id="memPanel" style="display:none">
+        <div class="mem-head">
+          <span class="mem-label">Orchestra memory</span>
+          <span class="mem-count" id="memCount">0 engrams</span>
+        </div>
+        <div class="mem-note"><strong>Its own memory.</strong> Every Stage-1 finding,
+          each agent's position, and the final document is committed to this run's
+          private mind — separate from Kioku and Aria. Ask it anything on the left.</div>
+        <div class="mem-feed" id="memFeed"><div class="mem-empty">No memories yet — convene to begin writing.</div></div>
+      </div>
+
+      <div class="stagebar" id="stagebar" style="display:none">
+        <span class="st" data-st="stage1">1 · Analyze</span>
+        <span class="st" data-st="researching">2 · Orchestra</span>
+        <span class="st" data-st="coordinating">Coordinate</span>
+        <span class="st" data-st="synthesizing">Synthesize</span>
+        <span class="st" data-st="done">Report</span>
+      </div>
+
+      <div class="progress" id="progress" style="display:none"></div>
+      <div class="budgetbar" id="budgetbar" style="display:none"><div class="budgetfill" id="budgetfill"></div></div>
+      <div class="budget" id="budget"></div>
+      <div class="err" id="err"></div>
+
+      <!-- Stage 1 — first research -->
+      <div class="c-section" id="s1Section" style="display:none">
+        <button class="c-toggle" data-target="s1Body">
+          <span class="c-label">Stage 1 · First research</span>
+          <span class="c-badge" id="s1Badge">…</span>
+          <span class="c-arrow">▼</span>
+        </button>
+        <div class="c-body open" id="s1Body">
+          <div id="s1Questions"></div>
+          <div class="hypo" id="s1Conclusion" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- Stage 2 — the orchestra -->
+      <div class="c-section" id="s2Section" style="display:none">
+        <button class="c-toggle" data-target="s2Body">
+          <span class="c-label">Stage 2 · The orchestra</span>
+          <span class="c-badge" id="s2Badge">0</span>
+          <span class="c-arrow">▼</span>
+        </button>
+        <div class="c-body open" id="s2Body">
+          <div class="hypo" id="hypo" style="display:none"></div>
+          <div class="agents" id="agents"></div>
+        </div>
+      </div>
+
+      <!-- Coordinator -->
+      <div class="c-section review" id="revSection" style="display:none">
+        <button class="c-toggle" data-target="revBody">
+          <span class="c-label">Coordinator review</span>
+          <span class="c-arrow">▼</span>
+        </button>
+        <div class="c-body open" id="revBody"></div>
+      </div>
+
+      <!-- Final document -->
+      <div class="c-section" id="repSection" style="display:none">
+        <button class="c-toggle" data-target="repBody">
+          <span class="c-label">The unified document</span>
+          <span class="c-arrow">▼</span>
+        </button>
+        <div class="c-body open" id="repBody">
+          <div class="report-dl"><button class="btn" id="dl">↓ Download PDF</button></div>
+          <div class="report" id="reportBody"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script src="app.js?v=1"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

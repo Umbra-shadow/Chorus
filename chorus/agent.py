@@ -27,6 +27,33 @@ log = logging.getLogger("chorus.agent")
 
 Progress = Callable[[str, dict], Awaitable[None]]
 
+
+class Budget:
+    """A shared ceiling on how many research questions the whole orchestra may
+    study — the iteration limit that keeps a run from quietly burning the API key.
+
+    Single-threaded asyncio: ``take`` checks-and-decrements without awaiting in
+    between, so it is atomic across the parallel agents.
+    """
+
+    def __init__(self, total: int) -> None:
+        self.total = max(1, int(total))
+        self.used = 0
+
+    def take(self) -> bool:
+        if self.used >= self.total:
+            return False
+        self.used += 1
+        return True
+
+    @property
+    def remaining(self) -> int:
+        return max(0, self.total - self.used)
+
+    @property
+    def exhausted(self) -> bool:
+        return self.used >= self.total
+
 _AGENT_SYSTEM = """\
 You are a %(role)s — the %(domain)s specialist on a multi-domain research team
 working on this shared hypothesis:
@@ -66,12 +93,13 @@ class DomainAgent:
 
     def __init__(self, engine: KiokuEngine, mind: Mind, qwen: QwenClient,
                  web: WebSearch, hypothesis: str, brief: AgentBrief,
-                 progress: Progress | None = None) -> None:
+                 budget: Budget, progress: Progress | None = None) -> None:
         self.engine = engine
         self.mind = mind
         self.qwen = qwen
         self.brief = brief
         self.hypothesis = hypothesis
+        self.budget = budget
         self._progress = progress
         # Reuse the copied researcher for web-grounded study against the shared mind.
         self._researcher = Researcher(engine, mind, web, qwen=qwen)
@@ -87,9 +115,14 @@ class DomainAgent:
         rep = DomainReport(domain=self.brief.domain, role=self.brief.role)
         await self._emit("agent_start", {"role": self.brief.role, "focus": self.brief.focus})
 
-        # 1. Research each focus question (grounded, committed to shared memory).
+        # 1. Research each focus question (grounded, committed to shared memory),
+        #    drawing from the shared question budget so the run can't overspend.
         findings: list[Finding] = []
         for i, q in enumerate(self.brief.focus or [f"Key considerations for {self.brief.domain}"]):
+            if not self.budget.take():
+                await self._emit("agent_capped", {"reason": "question budget reached",
+                                                  "studied": len(findings)})
+                break
             f = Finding(id=i + 1, question=f"[{self.brief.domain}] {q}")
             try:
                 f = await self._researcher.study(f)
