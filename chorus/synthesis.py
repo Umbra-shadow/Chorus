@@ -52,7 +52,7 @@ async def synthesize(qwen: QwenClient, question: str, hypothesis: str,
         report = (await qwen.chat(
             [{"role": "system", "content": _SYNTH_SYSTEM},
              {"role": "user", "content": user}],
-            temperature=0.35, max_tokens=16384,
+            temperature=0.35, max_tokens=8192,
         )).strip()
     except LLMError as e:
         log.warning("synthesis failed: %s", e)

@@ -84,7 +84,7 @@ async def cast_agents(qwen: QwenClient, question: str, context: str = "") -> Cas
             {"role": "user", "content": user},
         ],
         temperature=0.4,
-        max_tokens=16384,
+        max_tokens=8192,
     )
     hypothesis = str(raw.get("hypothesis", "")).strip()
     rows = raw.get("agents") if isinstance(raw, dict) else None
@@ -100,7 +100,8 @@ async def cast_agents(qwen: QwenClient, question: str, context: str = "") -> Cas
         if not domain or domain in seen:
             continue
         seen.add(domain)
-        focus = [str(f).strip() for f in (row.get("focus") or []) if str(f).strip()]
+        focus_raw = row.get("focus")
+        focus = [str(f).strip() for f in (focus_raw if isinstance(focus_raw, list) else []) if str(f).strip()]
         agents.append(AgentBrief(
             domain=domain,
             role=str(row.get("role", domain)).strip() or domain,

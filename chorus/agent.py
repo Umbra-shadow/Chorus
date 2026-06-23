@@ -141,7 +141,7 @@ class DomainAgent:
             data = await self.qwen.chat_json(
                 [{"role": "system", "content": sys},
                  {"role": "user", "content": f"YOUR FINDINGS:\n{corpus}"}],
-                temperature=0.35, max_tokens=16384,
+                temperature=0.35, max_tokens=8192,
             )
             rep.summary = str(data.get("summary", "")).strip()
             rep.claims = [str(c).strip() for c in (data.get("claims") or []) if str(c).strip()]

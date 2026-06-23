@@ -1,0 +1,53 @@
+flowchart TD
+    U([User]) -- question + Qwen key --> WEB[Web Arena\nSPA on port 8080]
+
+    WEB -- POST /api/convene\nSSE stream --> APP[chorus/app.py\nFastAPI]
+
+    APP --> ORC[chorus/orchestra.py\nAsync orchestrator]
+
+    ORC --> R1[engine/researcher.py\nStage 1 Researcher]
+    R1 -- DDG search --> DDG[(DuckDuckGo)]
+    DDG --> R1
+    R1 -- Qwen summarise --> QW[Qwen Cloud\nDashScope intl]
+    QW --> R1
+    R1 -- engrams --> MEM[(Shared memory pool\nCadran PyStore)]
+
+    ORC --> ANA[chorus/analyzer.py\nCast domain agents]
+    ANA -- Qwen JSON call --> QW
+    QW -- agent list --> ANA
+
+    ANA --> AG1[Agent A\nneurology]
+    ANA --> AG2[Agent B\noptics]
+    ANA --> AGN[Agent N\nfinance …]
+
+    AG1 & AG2 & AGN -- asyncio.gather\nparallel --> QW
+    AG1 & AG2 & AGN -- DDG search --> DDG
+    AG1 & AG2 & AGN -- write position --> MEM
+
+    ORC --> COORD[chorus/coordinator.py\nReconcile findings]
+    COORD -- read positions --> MEM
+    COORD -- Qwen call --> QW
+
+    ORC --> SYN[chorus/synthesis.py\nFinal document]
+    SYN -- read all evidence --> MEM
+    SYN -- Qwen call --> QW
+    SYN -- Markdown + PDF --> APP
+
+    APP -- post-convene chat --> CHAT[chorus/app.py\n/api/chat]
+    CHAT -- recall from memory --> MEM
+    CHAT -- Qwen call --> QW
+    CHAT -- answer --> WEB
+
+    subgraph Alibaba Cloud ECS ap-southeast-1
+        APP
+        ORC
+        R1
+        ANA
+        AG1
+        AG2
+        AGN
+        COORD
+        SYN
+        CHAT
+        MEM
+    end

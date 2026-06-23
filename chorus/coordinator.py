@@ -72,7 +72,7 @@ async def review(qwen: QwenClient, hypothesis: str, reports: list[DomainReport])
         data = await qwen.chat_json(
             [{"role": "system", "content": _REVIEW_SYSTEM},
              {"role": "user", "content": f"HYPOTHESIS:\n{hypothesis}\n\nREPORTS:\n{_reports_block(reports)}"}],
-            temperature=0.3, max_tokens=16384,
+            temperature=0.3, max_tokens=8192,
         )
     except LLMError as e:
         log.warning("coordinator review failed, proceeding to synthesis: %s", e)
