@@ -4,6 +4,7 @@
 .env
 .env.*
 !.env.example
+me.txt
 
 # personal planning / notes — for me only, never deployed
 *.private.md
@@ -33,4 +34,3 @@ chorus_reports/
 # editors
 .idea/
 .vscode/
-.me.txtme.txt
