@@ -209,7 +209,18 @@ function listen(){
         progress(`Stage 1 — ${e.questions.length} questions, researching one by one…`);
       } else if (e.sub === "studying"){ ensureSubq(e.id, e.question); progress(`Stage 1 — answering Q${e.id}…`); }
       else if (e.sub === "studied"){ fillSubq(e.id, e); setBudget(qUsed + 1); progress(`Stage 1 — answered ${qUsed}/${$("#numq").value}…`); refreshMemory(); }
-    } else if (e.stage === "stage1_done"){ $("#s1Badge").textContent = e.questions + " q"; progress("Stage 1 conclusion ready — going deeper."); }
+    } else if (e.stage === "stage1_done"){
+      $("#s1Badge").textContent = e.questions + " q";
+      progress("Stage 1 complete — going deeper.");
+      // Clear any spinners still showing — a question whose studied event was
+      // dropped/delayed must not block the UI from advancing.
+      Object.values(s1q).forEach(rec => {
+        if (rec.state.querySelector && rec.state.querySelector(".spin")) {
+          rec.state.className = "sqstate";
+          rec.state.innerHTML = "−";
+        }
+      });
+    }
 
     // Stage 2 — orchestra
     else if (e.stage === "cast"){
