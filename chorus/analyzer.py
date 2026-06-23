@@ -20,31 +20,46 @@ from engine.qwen import LLMError, QwenClient
 log = logging.getLogger("chorus.analyzer")
 
 _CAST_SYSTEM = """\
-You are the analyzer of a multi-agent research orchestra. A user has asked a hard,
-real-world question. Your job: assemble the COMPLETE, COMPREHENSIVE expert team
-needed to actually build an answer — every discipline that would sit at the table
-on a real project.
+You are the analyzer of a multi-agent research orchestra. A user has a hard
+real-world question. Your job is to staff the R&D project team that will BUILD
+the answer — one specialist per distinct discipline required.
 
-Think of it as staffing a serious R&D project. For a prosthetic eye you would need:
-ophthalmology, neuroscience/neurointerface, biomedical engineering, materials
-science, electronics/hardware, firmware/software, surgical procedure, regulatory
-affairs, manufacturing, AND finance. That is 10 domains — because all 10 are real.
+IMPORTANT: The first-pass research you receive is BACKGROUND KNOWLEDGE, not
+completed work. It tells you what is known. Your cast tells you WHO DOES THE WORK.
+These are different questions. Do not reduce the team because research exists —
+instead cast every expert who must contribute to a real solution.
+
+HOW TO THINK ABOUT THE CAST:
+Ask yourself: on a real project team, who sits at the table?
+  - Who designs the device/system?
+  - Who manufactures or fabricates it?
+  - Who implants, installs, or deploys it?
+  - Who connects it to the body/brain/environment?
+  - Who writes the firmware or software?
+  - Who selects and qualifies the materials?
+  - Who runs the electronics and sensors?
+  - Who navigates regulatory and safety approval?
+  - Who handles clinical trials or testing protocols?
+  - Who models the cost and feasibility?
+Each YES is a separate agent. Never merge two real disciplines.
+
+EXAMPLE — "how do we make a prosthetic eye?" → 10 agents:
+  ophthalmology, neuroscience, biomedical engineering, materials science,
+  electronics/hardware, firmware/software, surgical procedure, regulatory affairs,
+  clinical trials, finance
 
 Rules:
-- Cast EVERY domain that genuinely contributes a distinct expert view. Do NOT
-  collapse two different disciplines into one to save slots.
-- Aim for BREADTH: think about who designs it, who builds it, who connects it,
-  who tests it, who approves it, who pays for it, who manufactures it at scale.
-- ALWAYS include "finance" (cost model, BOM, feasibility).
-- For each domain, write 2–4 sharp, specific focus questions that agent must answer.
-- You may cast up to %(max)d domains. Use as many as the problem genuinely requires.
-- Do NOT pad with irrelevant domains. Do NOT compress real domains to hit a lower number.
+- MINIMUM %(min)d agents, up to %(max)d. Most hard questions need 7–10.
+- ALWAYS include "finance" (cost model, BOM, go-to-market feasibility).
+- Give each agent 2–4 sharp focus questions specific to their discipline.
+- Do NOT merge two real disciplines to reduce the count.
+- Do NOT pad with vague or redundant domains.
 
-Respond ONLY as JSON (no markdown, no preamble):
-{"hypothesis": "one-paragraph research hypothesis and design framing",
+Respond ONLY as JSON (no markdown, no preamble, no explanation outside the JSON):
+{"hypothesis": "one-paragraph design hypothesis framing the build challenge",
  "agents": [
    {"domain": "neuroscience", "role": "Neurointerface specialist",
-    "why": "why this domain is essential",
+    "why": "one sentence on why this discipline is essential",
     "focus": ["specific question 1", "specific question 2", "specific question 3"]}
  ]}"""
 
@@ -71,9 +86,16 @@ class Cast:
 
 def _max_agents() -> int:
     try:
-        return max(2, min(12, int(os.environ.get("CHORUS_MAX_AGENTS", "10"))))
+        return max(4, min(12, int(os.environ.get("CHORUS_MAX_AGENTS", "10"))))
     except ValueError:
         return 10
+
+
+def _min_agents() -> int:
+    try:
+        return max(4, min(8, int(os.environ.get("CHORUS_MIN_AGENTS", "6"))))
+    except ValueError:
+        return 6
 
 
 async def cast_agents(qwen: QwenClient, question: str, context: str = "") -> Cast:
@@ -84,15 +106,16 @@ async def cast_agents(qwen: QwenClient, question: str, context: str = "") -> Cas
     so Stage 2 goes *deeper* rather than repeating Stage 1.
     """
     cap = _max_agents()
+    low = _min_agents()
     user = f"QUESTION:\n{question}"
     if context.strip():
-        user += f"\n\nFIRST-PASS RESEARCH CONCLUSION (build deeper on this):\n{context.strip()}"
+        user += f"\n\nBACKGROUND KNOWLEDGE FROM FIRST-PASS RESEARCH (use to inform the cast, not to reduce it):\n{context.strip()}"
     raw = await qwen.chat_json(
         [
-            {"role": "system", "content": _CAST_SYSTEM % {"max": cap}},
+            {"role": "system", "content": _CAST_SYSTEM % {"min": low, "max": cap}},
             {"role": "user", "content": user},
         ],
-        temperature=0.4,
+        temperature=0.7,
         max_tokens=8192,
     )
     hypothesis = str(raw.get("hypothesis", "")).strip()
@@ -126,9 +149,12 @@ async def cast_agents(qwen: QwenClient, question: str, context: str = "") -> Cas
             domain="finance", role="Cost & feasibility analyst",
             why="Every buildable solution needs a cost model and feasibility check.",
             focus=["What are the major cost drivers and an estimated budget range?",
-                   "What is the feasibility and time-to-build given current technology?"],
+                   "What is the feasibility and time-to-build given current technology?",
+                   "What does the go-to-market or deployment pathway look like?"],
         ))
     if not hypothesis:
         hypothesis = f"Investigate and design a buildable answer to: {question}"
+    if len(agents) < low:
+        log.warning("analyzer returned only %d agents (minimum %d) — model under-cast", len(agents), low)
     log.info("analyzer cast %d agents: %s", len(agents), ", ".join(a.domain for a in agents))
     return Cast(hypothesis=hypothesis, agents=agents)
