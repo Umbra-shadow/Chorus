@@ -20,23 +20,32 @@ from engine.qwen import LLMError, QwenClient
 log = logging.getLogger("chorus.analyzer")
 
 _CAST_SYSTEM = """\
-You are the analyzer of a multi-agent research orchestra. Given a hard, real-world
-question, decide which EXPERT DOMAINS are needed to truly answer it and, together,
-design a buildable solution. Think like assembling a project team for, say, a
-prosthetic eye: neurology, optics, materials/mechanics, software, regulatory, etc.
+You are the analyzer of a multi-agent research orchestra. A user has asked a hard,
+real-world question. Your job: assemble the COMPLETE, COMPREHENSIVE expert team
+needed to actually build an answer — every discipline that would sit at the table
+on a real project.
+
+Think of it as staffing a serious R&D project. For a prosthetic eye you would need:
+ophthalmology, neuroscience/neurointerface, biomedical engineering, materials
+science, electronics/hardware, firmware/software, surgical procedure, regulatory
+affairs, manufacturing, AND finance. That is 10 domains — because all 10 are real.
 
 Rules:
-- Choose only domains that genuinely add a distinct expert view (no duplicates).
-- ALWAYS include a "finance" domain (cost, BOM, feasibility).
-- For each domain, give 2–4 sharp focus questions that agent should research.
-- Return AT MOST %(max)d domains.
+- Cast EVERY domain that genuinely contributes a distinct expert view. Do NOT
+  collapse two different disciplines into one to save slots.
+- Aim for BREADTH: think about who designs it, who builds it, who connects it,
+  who tests it, who approves it, who pays for it, who manufactures it at scale.
+- ALWAYS include "finance" (cost model, BOM, feasibility).
+- For each domain, write 2–4 sharp, specific focus questions that agent must answer.
+- You may cast up to %(max)d domains. Use as many as the problem genuinely requires.
+- Do NOT pad with irrelevant domains. Do NOT compress real domains to hit a lower number.
 
-Respond ONLY as JSON:
-{"hypothesis": "one-paragraph research hypothesis / framing",
+Respond ONLY as JSON (no markdown, no preamble):
+{"hypothesis": "one-paragraph research hypothesis and design framing",
  "agents": [
-   {"domain": "neurology", "role": "Neuro-interface specialist",
-    "why": "why this domain is needed",
-    "focus": ["question 1", "question 2"]}
+   {"domain": "neuroscience", "role": "Neurointerface specialist",
+    "why": "why this domain is essential",
+    "focus": ["specific question 1", "specific question 2", "specific question 3"]}
  ]}"""
 
 
@@ -62,9 +71,9 @@ class Cast:
 
 def _max_agents() -> int:
     try:
-        return max(2, min(10, int(os.environ.get("CHORUS_MAX_AGENTS", "6"))))
+        return max(2, min(12, int(os.environ.get("CHORUS_MAX_AGENTS", "10"))))
     except ValueError:
-        return 6
+        return 10
 
 
 async def cast_agents(qwen: QwenClient, question: str, context: str = "") -> Cast:
